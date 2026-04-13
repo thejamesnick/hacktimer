@@ -11,7 +11,8 @@
     "build": "tsc",
     "prepare": "npm run build",
     "start": "node dist/index.js",
-    "dev": "tsc --watch"
+    "dev": "tsc --watch",
+    "test": "vitest --run"
   },
   "keywords": [
     "productivity",
@@ -22,9 +23,13 @@
   ],
   "author": "thejamesnick",
   "license": "MIT",
+  "vitest": {
+    "environment": "node"
+  },
   "devDependencies": {
     "@types/node": "^20.0.0",
-    "typescript": "^5.0.0"
+    "typescript": "^5.0.0",
+    "vitest": "^4.1.4"
   },
   "dependencies": {
     "chalk": "^5.3.0",
