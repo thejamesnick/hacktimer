@@ -1,5 +1,7 @@
 # HACKLEARN — HACK #0 — HackTimer
 
+> honest lessons from actually building this
+
 ## The Problem Solved
 Developers lie to themselves about productivity. We measure success by hours spent at desk, not actual focused coding time. Context switching, distractions, and "pretend work" inflate our perceived productivity, leading to poor planning and burnout.
 
@@ -184,22 +186,51 @@ class IntegrityProtector {
 ```
 
 ## What This Taught Me
-### Technical Lesson
-Filesystem events are vastly more efficient than polling for activity detection - chokidar handles edge cases (atomic saves, temp files) that naive implementations miss.
 
-### Process Lesson
-The 12-hour constraint forces ruthless prioritization. I built the core tracker in 6 hours, spent 4 hours on reporting/features, and 2 hours on polish/docs - exactly how the constraint should work.
+### 1. moduleResolution matters more than you think
+Started with `"moduleResolution": "bundler"` in tsconfig because it looked modern. It broke everything — the IDE couldn't resolve `.js` imports, TS errors everywhere. The fix was `"module": "Node16"` + `"moduleResolution": "node16"`. Rule: bundler resolution is for Vite/esbuild. Node ESM projects need node16.
 
-### Mindset Lesson
-"Dirty but secure" isn't about cutting corners - it's about finding the simplest solution that meets security requirements. The HMAC logging took 20 lines instead of introducing a database.
+### 2. In-memory state dies between terminals
+First instinct was to keep the active session in a module-level variable (`let active = ...`). Works fine if you start and stop from the same terminal. But `hacktimer status` and `hacktimer stop` run as separate processes — they have no idea what's in memory. The fix: persist everything to `~/.hacktimer/sessions.json` on every write, read from it on every command. The in-memory `active` object is only for the running `start` process.
 
-## Next Steps / Future Ideas
-If I had more time or wanted to extend this:
-- [ ] IDE plugins (VS Code/JetBrains) for tighter integration
-- [ ] GitHub action to verify claimed hours in public repos
-- [ ] Team mode with encrypted sharing (opt-in only)
-- [ ] Visualization dashboard showing productivity patterns
-- [ ] Integration with project management tools (Jira, Linear, etc.)
+### 3. chmod 444 is a dirty trick that actually works
+After every write to `sessions.json`, we do `fs.chmodSync(path, 0o444)` — makes the file read-only. Before every write, `0o644` to unlock it. This means if someone manually edits the file, they have to deliberately `chmod` it first. Combined with HMAC, it makes casual faking obvious without needing a server or blockchain. Simple. Effective.
+
+### 4. commander's help is plain by default — you have to own it
+`commander` auto-generates help from your command definitions. It works but it's boring — no colour, no personality, no examples. `addHelpText('beforeAll', ...)` and `addHelpText('afterAll', ...)` let you wrap it with whatever you want. Worth doing — it's the first thing people see.
+
+### 5. Shared formatters prevent drift
+Had `fmtTime` duplicated in `report.ts` with slightly wrong rounding logic (`Math.round(m / 6)` — don't ask). Meanwhile `tracker.ts` was showing `6h 48m` and `report.ts` was showing `6.8h`. Inconsistent. The fix: one `export function fmtDecimal()` in `tracker.ts`, imported everywhere. One source of truth.
+
+### 6. Version should never be hardcoded in CLI tools
+Had `.version('1.0.0')` hardcoded in `index.ts`. Every time you bump `package.json` you'd have to remember to update it in two places. Use `createRequire` to pull it from `package.json` at runtime — then bumping the version in one place is all you ever need.
 
 ---
-*Built in 11.5 hours active time (tracked with HackTimer)*
+
+## The Dirty Tricks (real ones)
+
+**Filesystem events > polling.** chokidar fires on actual OS-level file events. No CPU burn, no polling interval, no missed saves. Handles atomic saves (where editors write to a temp file then rename) out of the box.
+
+**git ls-files for LOC.** Instead of walking every file, `git ls-files` gives you exactly the files that matter — tracked source files only. No `node_modules`, no `dist`, no generated files. Falls back to a manual walk if git isn't available.
+
+**Store path in the session, not just in memory.** When `stop` runs from a different terminal, `active` is null. But the store has `activeProject` and `activeSessionId` — enough to find the session, compute the final LOC, and write the result. The in-memory object is a performance optimisation, not the source of truth.
+
+---
+
+## Trade-offs
+
+- **LOC delta isn't perfect.** If you're in a monorepo or tracking a folder with generated files, the delta can be noisy. Good enough for the use case.
+- **10-minute inactivity is arbitrary.** Could be configurable. Kept it fixed for simplicity — most people won't need to change it.
+- **stop from a different terminal loses active time precision.** If you ran `start`, edited files for 2h, then ran `stop` from a new terminal — the `active` object is gone. We only have what's in the store (session start time). Active minutes will be 0 unless the process is still running. Known limitation.
+
+---
+
+## Next Steps
+
+- [ ] IDE plugin (VS Code) — hook into save events directly instead of filesystem
+- [ ] GitHub Action — verify claimed hours against commit timestamps
+- [ ] Team mode — encrypted session sharing for pair programming
+- [ ] `hacktimer resume` — restart a stopped session
+
+---
+*Built in [X]h active time — tracked with HackTimer, naturally 😂*
