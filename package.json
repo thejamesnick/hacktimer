@@ -1,6 +1,6 @@
 {
-  "name": "hacktimer",
-  "version": "1.1.4",
+  "name": "myhacktimer",
+  "version": "1.0.0",
   "description": "Smart CLI that tracks only real active coding time per project",
   "main": "dist/index.js",
   "bin": {

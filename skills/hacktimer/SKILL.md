@@ -10,9 +10,9 @@ HackTimer tracks **real active coding time** — not clock time. Auto-pauses aft
 ## Install
 
 ```bash
-npm install -g hacktimer
+npm install -g myhacktimer
 # or without installing
-npx hacktimer start .
+npx myhacktimer start .
 ```
 
 ## Commands

@@ -5,7 +5,7 @@
 A CLI that tracks **only real active coding time** — not clock time. Auto-pauses when you go AFK. Logs LOC delta. Tamper-evident so *"shipped in 7h"* actually means something.
 
 ```bash
-npx hacktimer start .
+npx myhacktimer start .
 ```
 
 ---
@@ -21,9 +21,9 @@ HackTimer only counts time when files are changing. The moment you stop editing,
 ## Install
 
 ```bash
-npm install -g hacktimer
+npm install -g myhacktimer
 # or just run directly
-npx hacktimer start .
+npx myhacktimer start .
 ```
 
 ---
