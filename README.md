@@ -91,4 +91,16 @@ Everything stays on your machine.
 
 ---
 
+## Agent Skill
+
+Install the skill so any agent (Kiro, Claude Code, Copilot, etc.) knows how to use hacktimer:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/thejamesnick/hacktimer/main/skills/install.sh | bash
+```
+
+Or manually copy `skills/hacktimer/SKILL.md` into `~/.agent-skills/hacktimer/SKILL.md`.
+
+---
+
 *Part of the HACK Series (https://x.com/YukoNikumo) — building one thing a day, live. 🔥*
