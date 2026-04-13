@@ -32,6 +32,7 @@ npx myhacktimer start .
 
 ```bash
 hacktimer start <path> [-t 4h]   # start tracking (default timeout: 12h)
+hacktimer start <path> --daemon  # run in background, close terminal freely
 hacktimer stop                    # end session + summary
 hacktimer status                  # check live session from another terminal
 hacktimer report [project] -p week  # day | week | month | year
@@ -40,6 +41,8 @@ hacktimer log [project]           # raw session history
 ```
 
 **Timeout format:** `30m`, `2h`, `12h`, `24h` — whatever fits your session.
+
+**Resume:** If your machine restarts or the process dies, just run `hacktimer start .` again in the same folder — it picks up the session where it left off.
 
 ---
 

@@ -72,6 +72,8 @@ hacktimer log my-hack               # specific project
 ## Agent usage tips
 
 - Always run `hacktimer start <path>` from the project root or pass the full path
+- Use `--daemon` flag to run in background: `hacktimer start . --daemon`
+- If the process dies or machine restarts, run `hacktimer start .` again — it resumes the open session automatically
 - `hacktimer stop` works from any terminal — it reads state from the store, not memory
 - Use `hacktimer status` to check if a session is already running before starting a new one
 - If the store reports a tamper warning, the data has been reset — previous sessions are gone

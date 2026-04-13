@@ -35,45 +35,68 @@ export async function startTracking(projectPath: string, timeoutHours: number) {
   }
 
   const store = loadStore();
+  const projectName = path.basename(absPath);
 
-  if (store.activeProject) {
+  // Resume if there's an open session for the same project
+  const isSameProject = store.activeProject === projectName;
+  const openSession = isSameProject && store.activeSessionId
+    ? store.projects[projectName]?.sessions.find(s => s.id === store.activeSessionId && !s.end)
+    : null;
+
+  if (store.activeProject && !isSameProject) {
     console.log(chalk.yellow(`⚠️  Already tracking "${store.activeProject}". Run hacktimer stop first.`));
     process.exit(1);
   }
 
-  const projectName = path.basename(absPath);
-  const displayPath = projectPath; // keep original arg for display (e.g. "./my-hack")
-  const sessionId = `sess_${Date.now()}`;
+  const displayPath = projectPath;
   const now = new Date().toISOString();
-  const date = now.slice(0, 10);
 
-  const locStart = await getLocCount(absPath);
+  let sessionId: string;
+  let locStart: number;
+  let alreadyActiveMs: number = 0;
 
-  console.log(chalk.green(`\n✅ HackTimer started for ${chalk.bold.white(displayPath)}`));
-  console.log(chalk.gray(`   ${chalk.cyan('⏱️')}  Timeout: ${chalk.bold.white(timeoutHours + 'h')} | Active time: ${chalk.bold.white('0h 0m')}`));
-  console.log(chalk.gray(`   ${'👀'}  Watching for file changes...`));
-  console.log(chalk.gray(`   ${'⏸️'}  Pauses automatically after ${chalk.bold('10min')} of no edits\n`));
+  if (openSession) {
+    // Resume existing session
+    sessionId = openSession.id;
+    locStart = openSession.locStart;
+    alreadyActiveMs = openSession.activeMinutes * 60000;
+    const resumedMins = openSession.activeMinutes;
+    const h = Math.floor(resumedMins / 60);
+    const m = resumedMins % 60;
+    console.log(chalk.green(`\n▶️  Resumed session for ${chalk.bold.white(displayPath)}`));
+    console.log(chalk.gray(`   ⏱️  Already logged: ${chalk.bold.white(`${h}h ${m}m`)} | picking up where you left off`));
+    console.log(chalk.gray(`   👀  Watching for file changes...\n`));
+  } else {
+    // New session
+    sessionId = `sess_${Date.now()}`;
+    const date = now.slice(0, 10);
+    locStart = await getLocCount(absPath);
 
-  // Persist active session to store so status/stop work from any terminal
-  if (!store.projects[projectName]) {
-    store.projects[projectName] = { timeoutHours, sessions: [] };
+    console.log(chalk.green(`\n✅ HackTimer started for ${chalk.bold.white(displayPath)}`));
+    console.log(chalk.gray(`   ${chalk.cyan('⏱️')}  Timeout: ${chalk.bold.white(timeoutHours + 'h')} | Active time: ${chalk.bold.white('0h 0m')}`));
+    console.log(chalk.gray(`   ${'👀'}  Watching for file changes...`));
+    console.log(chalk.gray(`   ${'⏸️'}  Pauses automatically after ${chalk.bold('10min')} of no edits\n`));
+
+    if (!store.projects[projectName]) {
+      store.projects[projectName] = { timeoutHours, sessions: [] };
+    }
+    store.projects[projectName].timeoutHours = timeoutHours;
+
+    const session: Session = {
+      id: sessionId,
+      start: now,
+      end: null,
+      activeMinutes: 0,
+      locStart,
+      locEnd: null,
+      date,
+    };
+    store.projects[projectName].sessions.push(session);
+    store.activeProject = projectName;
+    store.activeSessionId = sessionId;
+    store.activeSessionStart = now;
+    saveStore(store);
   }
-  store.projects[projectName].timeoutHours = timeoutHours;
-
-  const session: Session = {
-    id: sessionId,
-    start: now,
-    end: null,
-    activeMinutes: 0,
-    locStart,
-    locEnd: null,
-    date,
-  };
-  store.projects[projectName].sessions.push(session);
-  store.activeProject = projectName;
-  store.activeSessionId = sessionId;
-  store.activeSessionStart = now;
-  saveStore(store);
 
   const watcher = startWatcher(
     absPath,
@@ -100,7 +123,7 @@ export async function startTracking(projectPath: string, timeoutHours: number) {
     projectPath: absPath,
     sessionId,
     startTime: Date.now(),
-    activeMs: 0,
+    activeMs: alreadyActiveMs,
     lastResumeTime: Date.now(),
     isPaused: false,
     locStart,

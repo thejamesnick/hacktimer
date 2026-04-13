@@ -17,6 +17,8 @@ DONE ✅
 [x] version pulled from package.json (not hardcoded)
 [x] git init + .gitignore (ignores dist/, node_modules/)
 [x] custom --help with branding + examples
+[x] --daemon flag — detaches from terminal, PID file, stop kills it
+[x] session resume — restart on same folder picks up where you left off
 
 NEEDS FIXING 🔧
 ----------------

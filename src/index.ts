@@ -3,6 +3,10 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
 import { createRequire } from 'module';
+import { spawn } from 'child_process';
+import fs from 'fs';
+import path from 'path';
+import os from 'os';
 const require = createRequire(import.meta.url);
 const { version } = require('../package.json');
 import { startTracking, stopTracking } from './tracker.js';
@@ -10,6 +14,8 @@ import { showStatus } from './status.js';
 import { showReport } from './report.js';
 import { listProjects } from './list.js';
 import { showLog } from './log.js';
+
+const PID_PATH = path.join(os.homedir(), '.hacktimer', 'daemon.pid');
 
 const program = new Command();
 
@@ -24,10 +30,15 @@ ${chalk.gray('Auto-pauses on AFK. Logs LOC delta. Tamper-evident. Ships via npx.
 `)
   .addHelpText('afterAll', `
 ${chalk.gray('Examples:')}
-  ${chalk.cyan('hacktimer start .')}              start tracking current folder
-  ${chalk.cyan('hacktimer start ./my-hack -t 4h')} track with 4h timeout
-  ${chalk.cyan('hacktimer report --period week')}  see this week's hours
-  ${chalk.cyan('hacktimer log my-hack')}           raw session list
+  ${chalk.cyan('hacktimer start .')}               start tracking current folder
+  ${chalk.cyan('hacktimer start . --daemon')}       run in background, close terminal freely
+  ${chalk.cyan('hacktimer start ./my-hack -t 4h')}  track with 4h timeout
+  ${chalk.cyan('hacktimer stop')}                   end session + summary (kills daemon too)
+  ${chalk.cyan('hacktimer status')}                 check live session from any terminal
+  ${chalk.cyan('hacktimer report --period week')}   see this week's hours
+  ${chalk.cyan('hacktimer log my-hack')}            raw session list
+
+${chalk.gray('Resume: if your machine restarts, run hacktimer start . again — picks up where you left off.')}
 `)
   .configureHelp({ helpWidth: 80 });
 
@@ -35,8 +46,27 @@ program
   .command('start <path>')
   .description('Start tracking a project folder')
   .option('-t, --timeout <duration>', 'Timeout e.g. 30m, 2h, 12h (default: 12h)', '12h')
-  .action(async (projectPath: string, options: { timeout: string }) => {
+  .option('-d, --daemon', 'Run in background — detaches from terminal')
+  .action(async (projectPath: string, options: { timeout: string; daemon: boolean }) => {
     const hours = parseTimeout(options.timeout);
+
+    if (options.daemon) {
+      // Spawn a detached child of ourselves without --daemon flag
+      const child = spawn(process.execPath, [process.argv[1], 'start', projectPath, '-t', options.timeout], {
+        detached: true,
+        stdio: 'ignore',
+      });
+      child.unref();
+
+      // Save PID so stop can kill it
+      fs.mkdirSync(path.dirname(PID_PATH), { recursive: true });
+      fs.writeFileSync(PID_PATH, String(child.pid));
+
+      console.log(chalk.green(`\n✅ HackTimer running as daemon (PID ${child.pid})`));
+      console.log(chalk.gray(`   Run ${chalk.cyan('hacktimer stop')} from any terminal to end the session.\n`));
+      process.exit(0);
+    }
+
     await startTracking(projectPath, hours);
   });
 
@@ -44,6 +74,16 @@ program
   .command('stop')
   .description('Stop current session and save')
   .action(async () => {
+    // Kill daemon process if one is running
+    if (fs.existsSync(PID_PATH)) {
+      const pid = parseInt(fs.readFileSync(PID_PATH, 'utf8').trim());
+      try {
+        process.kill(pid, 'SIGTERM');
+      } catch {
+        // Process already gone — that's fine
+      }
+      fs.unlinkSync(PID_PATH);
+    }
     await stopTracking();
   });
 
