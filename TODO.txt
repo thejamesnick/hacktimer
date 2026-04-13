@@ -5,7 +5,8 @@ Tracking against SPEC.md Phase 1 scope.
 DONE ✅
 -------
 [x] start — folder watcher + inactivity pause + LOC snapshot
-[x] stop — end session + LOC delta + save + summary
+[x] stop — pause session (keeps session open, saves time)
+[x] end — close session forever + final LOC delta + summary
 [x] status — live session state (reads from store, works across terminals)
 [x] report — day/week/month/year aggregation + LOC
 [x] list — all tracked projects
@@ -17,8 +18,10 @@ DONE ✅
 [x] version pulled from package.json (not hardcoded)
 [x] git init + .gitignore (ignores dist/, node_modules/)
 [x] custom --help with branding + examples
-[x] --daemon flag — detaches from terminal, PID file, stop kills it
-[x] session resume — restart on same folder picks up where you left off
+[x] --daemon flag — detaches from terminal, PID file, stop/end kills it
+[x] session resume — start always resumes open session for same folder
+[x] active time persisted every 2min — survives crashes/restarts
+[x] activeProjectPath saved to store — stop/end always counts right folder
 
 NEEDS FIXING 🔧
 ----------------

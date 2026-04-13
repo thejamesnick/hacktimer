@@ -37,11 +37,9 @@ export async function startTracking(projectPath: string, timeoutHours: number) {
   const store = loadStore();
   const projectName = path.basename(absPath);
 
-  // Resume if there's an open session for the same project
+  // Resume if there's an open session for this project (active or paused)
   const isSameProject = store.activeProject === projectName;
-  const openSession = isSameProject && store.activeSessionId
-    ? store.projects[projectName]?.sessions.find(s => s.id === store.activeSessionId && !s.end)
-    : null;
+  const openSession = store.projects[projectName]?.sessions.find(s => !s.end) ?? null;
 
   if (store.activeProject && !isSameProject) {
     console.log(chalk.yellow(`⚠️  Already tracking "${store.activeProject}". Run hacktimer stop first.`));
@@ -56,7 +54,7 @@ export async function startTracking(projectPath: string, timeoutHours: number) {
   let alreadyActiveMs: number = 0;
 
   if (openSession) {
-    // Resume existing session
+    // Resume existing session (was paused or daemon died)
     sessionId = openSession.id;
     locStart = openSession.locStart;
     alreadyActiveMs = openSession.activeMinutes * 60000;
@@ -66,6 +64,13 @@ export async function startTracking(projectPath: string, timeoutHours: number) {
     console.log(chalk.green(`\n▶️  Resumed session for ${chalk.bold.white(displayPath)}`));
     console.log(chalk.gray(`   ⏱️  Already logged: ${chalk.bold.white(`${h}h ${m}m`)} | picking up where you left off`));
     console.log(chalk.gray(`   👀  Watching for file changes...\n`));
+
+    // Re-activate in store
+    store.activeProject = projectName;
+    store.activeSessionId = sessionId;
+    store.activeSessionStart = openSession.start;
+    store.activeProjectPath = absPath;
+    saveStore(store);
   } else {
     // New session
     sessionId = `sess_${Date.now()}`;
@@ -95,6 +100,7 @@ export async function startTracking(projectPath: string, timeoutHours: number) {
     store.activeProject = projectName;
     store.activeSessionId = sessionId;
     store.activeSessionStart = now;
+    store.activeProjectPath = absPath;
     saveStore(store);
   }
 
@@ -132,13 +138,21 @@ export async function startTracking(projectPath: string, timeoutHours: number) {
     timeoutWarned: false,
   };
 
-  // Live update every 2 minutes while running
+  // Live update + persist active time every 2 minutes
   const liveInterval = setInterval(() => {
     if (!active) { clearInterval(liveInterval); return; }
     const elapsed = active.activeMs + (active.isPaused ? 0 : Date.now() - active.lastResumeTime);
     const mins = Math.round(elapsed / 60000);
     const status = active.isPaused ? chalk.yellow('⏸️  paused') : chalk.green('▶️  active');
     console.log(chalk.gray(`   ⏱️  ${fmtDecimal(mins)} active — ${status}`));
+
+    // Persist so stop can read accurate time even if daemon dies
+    const s = loadStore();
+    const sess = s.projects[active.projectName]?.sessions.find(x => x.id === active!.sessionId);
+    if (sess) {
+      sess.activeMinutes = mins;
+      saveStore(s);
+    }
   }, 2 * 60 * 1000);
 
   // Timeout enforcement
@@ -154,33 +168,75 @@ export async function startTracking(projectPath: string, timeoutHours: number) {
 
   setTimeout(async () => {
     console.log(chalk.red(`\n🛑 Timeout reached (${timeoutHours}h). Auto-stopping...`));
-    await stopTracking();
+    await pauseTracking();
     process.exit(0);
   }, timeoutMs);
 }
 
-export async function stopTracking() {
+export async function pauseTracking() {
   const store = loadStore();
 
   if (!store.activeProject || !store.activeSessionId) {
-    console.log(chalk.yellow('⚠️  No active session to stop.'));
+    console.log(chalk.yellow('⚠️  No active session.'));
     return;
   }
 
   const projectName = store.activeProject;
   const sessionId = store.activeSessionId;
 
-  // Accumulate final active time
   let finalActiveMs = 0;
-  let resolvedPath = process.cwd();
   if (active) {
     finalActiveMs = active.activeMs;
-    if (!active.isPaused) {
-      finalActiveMs += Date.now() - active.lastResumeTime;
-    }
+    if (!active.isPaused) finalActiveMs += Date.now() - active.lastResumeTime;
+    active.watcher.stop();
+    active = null;
+  } else {
+    const sess = store.projects[projectName]?.sessions.find(s => s.id === sessionId);
+    if (sess) finalActiveMs = sess.activeMinutes * 60000;
+  }
+
+  const activeMinutes = Math.round(finalActiveMs / 60000);
+  const session = store.projects[projectName]?.sessions.find(s => s.id === sessionId);
+  if (session) session.activeMinutes = activeMinutes;
+
+  // Keep session open — just clear the active watcher state
+  delete store.activeProject;
+  delete store.activeSessionId;
+  delete store.activeSessionStart;
+  // Keep activeProjectPath so resume knows where to watch
+  saveStore(store);
+
+  const divider = chalk.gray('─'.repeat(40));
+  console.log(chalk.yellow(`\n⏸️  Paused — ${chalk.bold.white(projectName)}`));
+  console.log(divider);
+  console.log(`⏱️  Active coding time: ${chalk.bold.green(fmtDecimal(activeMinutes))}`);
+  console.log(`📝 LOC so far:         ${chalk.bold.white(session?.locStart ?? 0)} lines at start`);
+  console.log(divider);
+  console.log(chalk.gray(`   Run ${chalk.cyan('hacktimer start .')} to resume anytime.\n`));
+}
+
+export async function endTracking() {
+  const store = loadStore();
+
+  if (!store.activeProject || !store.activeSessionId) {
+    console.log(chalk.yellow('⚠️  No active session to end.'));
+    return;
+  }
+
+  const projectName = store.activeProject;
+  const sessionId = store.activeSessionId;
+
+  let finalActiveMs = 0;
+  let resolvedPath = store.activeProjectPath || process.cwd();
+  if (active) {
+    finalActiveMs = active.activeMs;
+    if (!active.isPaused) finalActiveMs += Date.now() - active.lastResumeTime;
     resolvedPath = active.projectPath;
     active.watcher.stop();
     active = null;
+  } else {
+    const sess = store.projects[projectName]?.sessions.find(s => s.id === sessionId);
+    if (sess) finalActiveMs = sess.activeMinutes * 60000;
   }
 
   const projectData = store.projects[projectName];
@@ -191,8 +247,7 @@ export async function stopTracking() {
     return;
   }
 
-  const projectPath = resolvedPath;
-  const locEnd = await getLocCount(projectPath);
+  const locEnd = await getLocCount(resolvedPath);
   const locDelta = locEnd - session.locStart;
   const activeMinutes = Math.round(finalActiveMs / 60000);
   const timeoutHours = projectData.timeoutHours;
@@ -205,10 +260,10 @@ export async function stopTracking() {
   delete store.activeProject;
   delete store.activeSessionId;
   delete store.activeSessionStart;
+  delete store.activeProjectPath;
   saveStore(store);
 
   const divider = chalk.gray('─'.repeat(40));
-
   console.log(chalk.cyan(`\n🏁 Session ended for ${chalk.bold.white(projectName)}`));
   console.log(divider);
   console.log(`⏱️  Active coding time: ${chalk.bold.green(fmtDecimal(activeMinutes))}`);

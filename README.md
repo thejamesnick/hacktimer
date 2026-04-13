@@ -31,9 +31,10 @@ npx myhacktimer start .
 ## Commands
 
 ```bash
-hacktimer start <path> [-t 4h]   # start tracking (default timeout: 12h)
+hacktimer start <path> [-t 4h]   # start or resume session (default timeout: 12h)
 hacktimer start <path> --daemon  # run in background, close terminal freely
-hacktimer stop                    # end session + summary
+hacktimer stop                    # pause session — resume anytime with start
+hacktimer end                     # end session forever + final summary
 hacktimer status                  # check live session from another terminal
 hacktimer report [project] -p week  # day | week | month | year
 hacktimer list                    # all tracked projects
@@ -42,7 +43,7 @@ hacktimer log [project]           # raw session history
 
 **Timeout format:** `30m`, `2h`, `12h`, `24h` — whatever fits your session.
 
-**Resume:** If your machine restarts or the process dies, just run `hacktimer start .` again in the same folder — it picks up the session where it left off.
+**Sessions persist forever** — `stop` just pauses, `start` always resumes. Only `end` closes a session for good.
 
 ---
 
@@ -74,6 +75,12 @@ Not unbreakable — it's a local tool. But it makes casual faking obvious. That'
    ⏱️  Timeout: 12h | Active time: 0h 0m
    👀  Watching for file changes...
    ⏸️  Pauses automatically after 10min of no edits
+
+⏸️  Paused — my-hack
+────────────────────────────────────────
+⏱️  Active coding time:  2h 10m
+────────────────────────────────────────
+   Run hacktimer start . to resume anytime.
 
 🏁 Session ended for my-hack
 ────────────────────────────────────────

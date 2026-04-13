@@ -9,7 +9,7 @@ import path from 'path';
 import os from 'os';
 const require = createRequire(import.meta.url);
 const { version } = require('../package.json');
-import { startTracking, stopTracking } from './tracker.js';
+import { startTracking, pauseTracking, endTracking } from './tracker.js';
 import { showStatus } from './status.js';
 import { showReport } from './report.js';
 import { listProjects } from './list.js';
@@ -30,15 +30,16 @@ ${chalk.gray('Auto-pauses on AFK. Logs LOC delta. Tamper-evident. Ships via npx.
 `)
   .addHelpText('afterAll', `
 ${chalk.gray('Examples:')}
-  ${chalk.cyan('hacktimer start .')}               start tracking current folder
+  ${chalk.cyan('hacktimer start .')}               start or resume tracking current folder
   ${chalk.cyan('hacktimer start . --daemon')}       run in background, close terminal freely
   ${chalk.cyan('hacktimer start ./my-hack -t 4h')}  track with 4h timeout
-  ${chalk.cyan('hacktimer stop')}                   end session + summary (kills daemon too)
+  ${chalk.cyan('hacktimer stop')}                   pause session — resume anytime with start
+  ${chalk.cyan('hacktimer end')}                    end session forever + final summary
   ${chalk.cyan('hacktimer status')}                 check live session from any terminal
   ${chalk.cyan('hacktimer report --period week')}   see this week's hours
   ${chalk.cyan('hacktimer log my-hack')}            raw session list
 
-${chalk.gray('Resume: if your machine restarts, run hacktimer start . again — picks up where you left off.')}
+${chalk.gray('Sessions persist across restarts. stop = pause. end = done forever.')}
 `)
   .configureHelp({ helpWidth: 80 });
 
@@ -72,19 +73,26 @@ program
 
 program
   .command('stop')
-  .description('Stop current session and save')
+  .description('Pause session — resume anytime with hacktimer start')
   .action(async () => {
-    // Kill daemon process if one is running
     if (fs.existsSync(PID_PATH)) {
       const pid = parseInt(fs.readFileSync(PID_PATH, 'utf8').trim());
-      try {
-        process.kill(pid, 'SIGTERM');
-      } catch {
-        // Process already gone — that's fine
-      }
+      try { process.kill(pid, 'SIGTERM'); } catch {}
       fs.unlinkSync(PID_PATH);
     }
-    await stopTracking();
+    await pauseTracking();
+  });
+
+program
+  .command('end')
+  .description('End session forever — writes final summary')
+  .action(async () => {
+    if (fs.existsSync(PID_PATH)) {
+      const pid = parseInt(fs.readFileSync(PID_PATH, 'utf8').trim());
+      try { process.kill(pid, 'SIGTERM'); } catch {}
+      fs.unlinkSync(PID_PATH);
+    }
+    await endTracking();
   });
 
 program

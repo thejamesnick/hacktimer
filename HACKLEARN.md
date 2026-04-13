@@ -221,7 +221,17 @@ Had `.version('1.0.0')` hardcoded in `index.ts`. Every time you bump `package.js
 
 - **LOC delta isn't perfect.** If you're in a monorepo or tracking a folder with generated files, the delta can be noisy. Good enough for the use case.
 - **10-minute inactivity is arbitrary.** Could be configurable. Kept it fixed for simplicity — most people won't need to change it.
-- **stop from a different terminal loses active time precision.** If you ran `start`, edited files for 2h, then ran `stop` from a new terminal — the `active` object is gone. We only have what's in the store (session start time). Active minutes will be 0 unless the process is still running. Known limitation.
+- **stop from a different terminal loses active time precision.** Fixed in v1.0.3+ — active time is persisted to the store every 2 minutes, so `stop`/`end` from any terminal reads the last checkpoint. You lose at most 2 mins.
+
+---
+
+## What Changed After v1.0.0
+
+- `stop` now **pauses** the session — keeps it open, saves time, no end date written
+- `end` is the new command that closes a session forever and writes the final LOC delta
+- `start` always resumes if an open session exists for that folder — works after crashes, restarts, or manual pauses
+- Active time saved to store every 2 minutes — daemon can die and you lose nothing
+- `activeProjectPath` saved to store — `end` always counts LOC in the right folder even from a different terminal
 
 ---
 

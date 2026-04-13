@@ -1,11 +1,11 @@
 ---
 name: hacktimer
-description: Use this skill when the user wants to track coding time, start or stop a hacktimer session, check session status, view reports, list projects, or view session logs using the hacktimer CLI.
+description: Use this skill when the user wants to track coding time, start, pause or end a hacktimer session, check session status, view reports, list projects, or view session logs using the hacktimer CLI.
 ---
 
 # HackTimer
 
-HackTimer tracks **real active coding time** — not clock time. Auto-pauses after 10 minutes of inactivity, logs LOC delta, tamper-evident storage via HMAC-SHA256.
+HackTimer tracks **real active coding time** — not clock time. Auto-pauses after 10 minutes of inactivity, logs LOC delta, tamper-evident storage via HMAC-SHA256. Sessions persist across restarts — `stop` pauses, `start` always resumes, only `end` closes a session forever.
 
 ## Install
 
@@ -17,17 +17,24 @@ npx myhacktimer start .
 
 ## Commands
 
-### Start a session
+### Start or resume a session
 ```bash
-hacktimer start <path>              # default 12h timeout
+hacktimer start <path>              # start fresh or resume paused session
+hacktimer start . --daemon          # run in background, close terminal freely
 hacktimer start . --timeout 4h     # custom timeout (30m, 2h, 4h, 12h, 24h)
 ```
 
-### Stop a session
+### Pause (stop)
 ```bash
 hacktimer stop
 ```
-Ends the session, computes LOC delta, saves with integrity hash, prints summary.
+Saves current time, kills watcher. Session stays open — resume anytime with `start`.
+
+### End forever
+```bash
+hacktimer end
+```
+Closes the session permanently. Computes final LOC delta. Prints full summary.
 
 ### Check status (from any terminal)
 ```bash
@@ -58,23 +65,25 @@ hacktimer log my-hack               # specific project
 - Watches the folder with `chokidar` for file `add`, `change`, `unlink` events
 - Resets a 10-minute inactivity timer on every file change
 - Timer fires → pauses. Next file change → resumes
-- LOC snapshot at `start` and `stop`, delta stored per session
+- Active time saved to store every 2 minutes — survives crashes
+- LOC snapshot at `start`, final delta computed at `end`
 - Sessions saved to `~/.hacktimer/sessions.json`
 - File is `chmod 444` after every write + HMAC-SHA256 integrity check on every read
+- Only one project tracked at a time — `stop` before switching projects
 
 ## Data location
 
 ```
 ~/.hacktimer/sessions.json   # all session data
 ~/.hacktimer/.salt           # HMAC salt (never share this)
+~/.hacktimer/daemon.pid      # daemon PID (auto-cleaned on stop/end)
 ```
 
 ## Agent usage tips
 
-- Always run `hacktimer start <path>` from the project root or pass the full path
-- Use `--daemon` flag to run in background: `hacktimer start . --daemon`
-- If the process dies or machine restarts, run `hacktimer start .` again — it resumes the open session automatically
-- `hacktimer stop` works from any terminal — it reads state from the store, not memory
-- Use `hacktimer status` to check if a session is already running before starting a new one
-- If the store reports a tamper warning, the data has been reset — previous sessions are gone
+- `hacktimer start .` always resumes if an open session exists for that folder
+- Use `--daemon` to detach from terminal: `hacktimer start . --daemon`
+- Machine crashed? Just run `hacktimer start .` again — resumes from last checkpoint
+- `hacktimer stop` = pause. `hacktimer end` = done forever
+- Only one project active at a time — stop current before starting another
 - Timeout format examples: `30m`, `1h`, `4h`, `12h`, `24h`

@@ -23,6 +23,7 @@ export interface Store {
   activeProject?: string;
   activeSessionId?: string;
   activeSessionStart?: string;
+  activeProjectPath?: string;
   _integrity?: string;
 }
 

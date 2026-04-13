@@ -26,23 +26,51 @@ afterEach(() => {
 });
 
 describe('startTracking — resume', () => {
-  it('resumes an open session for the same project instead of blocking', async () => {
+  it('resumes a paused session (no activeProject in store, open session exists)', async () => {
+    const projectName = path.basename(tmpDir);
+    // Simulates: user ran hacktimer stop (pause) — activeProject cleared but session still open
+    mockLoadStore.mockReturnValue({
+      projects: {
+        [projectName]: {
+          timeoutHours: 12,
+          sessions: [{
+            id: 'sess_paused',
+            start: '2026-04-13T09:00:00Z',
+            end: null,
+            activeMinutes: 90,
+            locStart: 100,
+            locEnd: null,
+            date: '2026-04-13',
+          }],
+        },
+      },
+      // no activeProject — session was paused
+    });
+
+    await startTracking(tmpDir, 12);
+
+    const calls = (console.log as ReturnType<typeof vi.fn>).mock.calls.flat().join(' ');
+    expect(calls).toContain('Resumed');
+    expect(calls).toContain('1h 30m');
+    // saveStore called to re-activate session in store
+    expect(mockSaveStore).toHaveBeenCalled();
+  });
+
+  it('resumes an active session (daemon died, activeProject still set)', async () => {
     const projectName = path.basename(tmpDir);
     mockLoadStore.mockReturnValue({
       projects: {
         [projectName]: {
           timeoutHours: 12,
-          sessions: [
-            {
-              id: 'sess_existing',
-              start: '2026-04-13T09:00:00Z',
-              end: null,
-              activeMinutes: 90,
-              locStart: 100,
-              locEnd: null,
-              date: '2026-04-13',
-            },
-          ],
+          sessions: [{
+            id: 'sess_existing',
+            start: '2026-04-13T09:00:00Z',
+            end: null,
+            activeMinutes: 60,
+            locStart: 100,
+            locEnd: null,
+            date: '2026-04-13',
+          }],
         },
       },
       activeProject: projectName,
@@ -53,8 +81,7 @@ describe('startTracking — resume', () => {
 
     const calls = (console.log as ReturnType<typeof vi.fn>).mock.calls.flat().join(' ');
     expect(calls).toContain('Resumed');
-    expect(calls).toContain('1h 30m');
-    expect(mockSaveStore).not.toHaveBeenCalled();
+    expect(calls).toContain('1h 0m');
   });
 
   it('blocks if a different project is already active', async () => {
@@ -68,7 +95,7 @@ describe('startTracking — resume', () => {
     expect(process.exit).toHaveBeenCalledWith(1);
   });
 
-  it('starts a fresh session when no active session exists', async () => {
+  it('starts a fresh session when no open session exists', async () => {
     mockLoadStore.mockReturnValue({ projects: {} });
 
     await startTracking(tmpDir, 12);
