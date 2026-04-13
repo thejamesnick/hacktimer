@@ -19,6 +19,11 @@ interface ActiveSession {
   timeoutWarned: boolean;
 }
 
+// shared time formatter — decimal like spec: 6.8h
+export function fmtDecimal(mins: number): string {
+  return (mins / 60).toFixed(1) + 'h';
+}
+
 let active: ActiveSession | null = null;
 
 export async function startTracking(projectPath: string, timeoutHours: number) {
@@ -104,6 +109,15 @@ export async function startTracking(projectPath: string, timeoutHours: number) {
     timeoutWarned: false,
   };
 
+  // Live update every 2 minutes while running
+  const liveInterval = setInterval(() => {
+    if (!active) { clearInterval(liveInterval); return; }
+    const elapsed = active.activeMs + (active.isPaused ? 0 : Date.now() - active.lastResumeTime);
+    const mins = Math.round(elapsed / 60000);
+    const status = active.isPaused ? chalk.yellow('⏸️  paused') : chalk.green('▶️  active');
+    console.log(chalk.gray(`   ⏱️  ${fmtDecimal(mins)} active — ${status}`));
+  }, 2 * 60 * 1000);
+
   // Timeout enforcement
   const timeoutMs = timeoutHours * 60 * 60 * 1000;
   const warnAt = timeoutMs * 0.8;
@@ -170,15 +184,13 @@ export async function stopTracking() {
   delete store.activeSessionStart;
   saveStore(store);
 
-  const h = Math.floor(activeMinutes / 60);
-  const m = activeMinutes % 60;
   const divider = chalk.gray('─'.repeat(40));
 
   console.log(chalk.cyan(`\n🏁 Session ended for ${chalk.bold.white(projectName)}`));
   console.log(divider);
-  console.log(`⏱️  Active coding time: ${chalk.bold.green(`${h}h ${m}m`)}`);
+  console.log(`⏱️  Active coding time: ${chalk.bold.green(fmtDecimal(activeMinutes))}`);
   console.log(`📝 LOC delta:          ${locDelta >= 0 ? chalk.bold.green('+' + locDelta + ' lines') : chalk.bold.red(locDelta + ' lines')}`);
-  console.log(`💾 Timeout used:       ${chalk.bold.white(timeoutUsedPct + '%')} ${chalk.gray(`(${h}h ${m}m / ${timeoutHours}h)`)}`);
+  console.log(`💾 Timeout used:       ${chalk.bold.white(timeoutUsedPct + '%')} ${chalk.gray(`(${fmtDecimal(activeMinutes)} / ${timeoutHours}h)`)}`);
   console.log(divider);
   console.log(chalk.green('✅ Saved. Great work! 🔥\n'));
 }

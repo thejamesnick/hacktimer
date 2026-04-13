@@ -1,53 +1,94 @@
-# HackTimer
+# ⏱️ HackTimer
 
-Smart CLI that tracks only real active coding time per project — no more guessing.
+> I built the timer I use to time every hack. Hack #0. 😂
 
-## The Problem
-Developers lie to themselves about productivity. We count clock time, not actual focused work. Distractions, breaks, and context switching inflate our perceived productivity.
+A CLI that tracks **only real active coding time** — not clock time. Auto-pauses when you go AFK. Logs LOC delta. Tamper-evident so *"shipped in 7h"* actually means something.
 
-## The Solution
-HackTimer tracks **real active coding time** by:
-- Watching your project folder for file changes
-- Auto-pausing after 10 minutes of inactivity
-- Reporting time by day/week/month/year
-- Tracking lines of code delta to verify actual progress
-- Ships as `npx hacktimer` or `npm install -g hacktimer`
-
-## Features
-✅ **Smart tracking** - Only counts time when you're actively coding  
-✅ **Auto-pause** - Stops after 10min of no file changes  
-✅ **Custom timeouts** - Per-project limits (default 12h for HACK Series)  
-✅ **Multiple reports** - View stats by day/week/month/year  
-✅ **LOC delta** - Measures actual code output, not just time  
-✅ **Integrity protection** - Tamper-evident logging with HMAC  
-✅ **Zero config** - Works out of the box for any project  
-
-## Usage
 ```bash
-# Start tracking a project
-hacktimer start ./my-project --timeout 12h
-
-# Check current status
-hacktimer status
-
-# Stop and see final report
-hacktimer stop
-
-# View time reports
-hacktimer report --period day
-hacktimer report --period week
-hacktimer report --period month
-hacktimer report --period year
-hacktimer report --all
-
-# List all tracked projects
-hacktimer list
-
-# Export logs
-hacktimer log
+npx hacktimer start .
 ```
 
-## Dirty Trick
-Filesystem watching + in-memory state + LOC snapshots = accurate productivity measurement without over-engineering.
+---
 
-Built in under 12 active hours (tracked with itself, naturally).
+## Why
+
+Clock time is a lie. You start a timer, make a coffee, scroll Twitter, come back — and now your "6 hour build" was really 2.5h of actual work.
+
+HackTimer only counts time when files are changing. The moment you stop editing, the clock pauses. No fluff.
+
+---
+
+## Install
+
+```bash
+npm install -g hacktimer
+# or just run directly
+npx hacktimer start .
+```
+
+---
+
+## Commands
+
+```bash
+hacktimer start <path> [-t 4h]   # start tracking (default timeout: 12h)
+hacktimer stop                    # end session + summary
+hacktimer status                  # check live session from another terminal
+hacktimer report [project] -p week  # day | week | month | year
+hacktimer list                    # all tracked projects
+hacktimer log [project]           # raw session history
+```
+
+**Timeout format:** `30m`, `2h`, `12h`, `24h` — whatever fits your session.
+
+---
+
+## How it works
+
+- Watches your folder with `chokidar` for `add`, `change`, `unlink` events
+- Resets a 10-minute inactivity timer on every file change
+- When the timer fires → pauses. Next file change → resumes
+- Snapshots LOC at `start` and `stop`, computes delta
+- Saves everything to `~/.hacktimer/sessions.json`
+
+---
+
+## Integrity
+
+Two layers so *"I shipped this in X hours"* isn't just vibes:
+
+1. **HMAC-SHA256** — the entire session file is hashed on every write and verified on every read. Mismatch = warning + reset.
+2. **Read-only file** — `chmod 444` after every write. Editing it manually requires a deliberate `chmod`, which feels intentional and leaves a trace.
+
+Not unbreakable — it's a local tool. But it makes casual faking obvious. That's the point.
+
+---
+
+## Example output
+
+```
+✅ HackTimer started for ./my-hack
+   ⏱️  Timeout: 12h | Active time: 0h 0m
+   👀  Watching for file changes...
+   ⏸️  Pauses automatically after 10min of no edits
+
+🏁 Session ended for my-hack
+────────────────────────────────────────
+⏱️  Active coding time:  6h 48m
+📝 LOC delta:           +980 lines
+💾 Timeout used:        57%  (6h 48m / 12h)
+────────────────────────────────────────
+✅ Saved. Great work! 🔥
+```
+
+---
+
+## Stack
+
+Node.js + TypeScript. `chokidar` for watching. `commander` for CLI. `chalk` for colour. HMAC via built-in `crypto`. Zero database, zero cloud, zero telemetry.
+
+Everything stays on your machine.
+
+---
+
+*Part of the HACK Series (https://x.com/YukoNikumo) — building one thing a day, live. 🔥*

@@ -1,5 +1,6 @@
 import chalk from 'chalk';
 import { loadStore } from './store.js';
+import { fmtDecimal } from './tracker.js';
 
 type Period = 'day' | 'week' | 'month' | 'year';
 
@@ -55,14 +56,8 @@ export function showReport(projectName: string | undefined, period: Period, all:
     const totalMins = allSessions.reduce((a, s) => a + s.activeMinutes, 0);
     const totalLoc = allSessions.reduce((a, s) => a + ((s.locEnd ?? s.locStart) - s.locStart), 0);
 
-    const fmtTime = (mins: number) => {
-      const h = Math.floor(mins / 60);
-      const m = mins % 60;
-      return `${h}.${String(Math.round(m / 6)).padStart(1, '0')}h`;
-    };
-
     console.log(chalk.cyan(`\n📊 Report for ${chalk.bold(name)} (timeout: ${data.timeoutHours}h)`));
-    console.log(chalk.white(`📅 ${label}: ${fmtTime(periodMins)} | ${periodLoc >= 0 ? '+' : ''}${periodLoc} LOC`));
+    console.log(chalk.white(`📅 ${label}: ${fmtDecimal(periodMins)} | ${periodLoc >= 0 ? '+' : ''}${periodLoc} LOC`));
     console.log(chalk.gray('─'.repeat(45)));
 
     // Group by date
@@ -74,10 +69,10 @@ export function showReport(projectName: string | undefined, period: Period, all:
     }
 
     for (const [date, { mins, loc }] of Object.entries(byDate).sort().reverse()) {
-      console.log(chalk.white(`${date} : ${fmtTime(mins)} | ${loc >= 0 ? '+' : ''}${loc} LOC`));
+      console.log(chalk.white(`${date} : ${fmtDecimal(mins)} | ${loc >= 0 ? '+' : ''}${loc} LOC`));
     }
 
     console.log(chalk.gray('─'.repeat(45)));
-    console.log(chalk.yellow(`🏆 Total ever: ${fmtTime(totalMins)} | ${totalLoc >= 0 ? '+' : ''}${totalLoc} LOC\n`));
+    console.log(chalk.yellow(`🏆 Total ever: ${fmtDecimal(totalMins)} | ${totalLoc >= 0 ? '+' : ''}${totalLoc} LOC\n`));
   }
 }

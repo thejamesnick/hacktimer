@@ -1,0 +1,30 @@
+HACKTIMER — TODO
+=================
+Tracking against SPEC.md Phase 1 scope.
+
+DONE ✅
+-------
+[x] start — folder watcher + inactivity pause + LOC snapshot
+[x] stop — end session + LOC delta + save + summary
+[x] status — live session state (reads from store, works across terminals)
+[x] report — day/week/month/year aggregation + LOC
+[x] list — all tracked projects
+[x] log — raw session history
+[x] HMAC integrity + read-only file protection (chmod 444)
+[x] Timeout warning at 80%, hard stop at 100%
+[x] chalk coloured output with emojis throughout
+[x] --timeout flag accepts 30m / 2h / 12h etc.
+[x] version pulled from package.json (not hardcoded)
+[x] git init + .gitignore (ignores dist/, node_modules/)
+[x] custom --help with branding + examples
+
+NEEDS FIXING 🔧
+----------------
+all done ✅
+
+TODO 📋
+--------
+[ ] test a full real session end-to-end (start → edit files → stop)
+[ ] verify stop works from a different terminal (store-based, not in-memory)
+[ ] npm publish prep — check bin entry, test npx hacktimer works
+[ ] write HACKLEARN.md (lessons learned doc for the series)
