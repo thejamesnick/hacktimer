@@ -26,5 +26,5 @@ TODO 📋
 --------
 [ ] test a full real session end-to-end (start → edit files → stop)
 [ ] verify stop works from a different terminal (store-based, not in-memory)
-[ ] npm publish prep — check bin entry, test npx hacktimer works
-[ ] write HACKLEARN.md (lessons learned doc for the series)
+[x] npm publish prep — bin entry fixed, .npmignore added, dry-run clean (v1.1.4)
+[x] write HACKLEARN.md (lessons learned doc for the series)

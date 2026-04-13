@@ -1,0 +1,9 @@
+src/
+dist/tests/
+skills/
+TODO.txt
+SPEC.md
+STACK.md
+HACKLEARN.md
+*.test.ts
+tsconfig.json
