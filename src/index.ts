@@ -47,13 +47,15 @@ program
   .command('start <path>')
   .description('Start tracking a project folder')
   .option('-t, --timeout <duration>', 'Timeout e.g. 30m, 2h, 12h (default: 12h)', '12h')
+  .option('-i, --inactivity <duration>', 'Inactivity pause threshold e.g. 5m, 10m (default: 10m)', '10m')
   .option('-d, --daemon', 'Run in background — detaches from terminal')
-  .action(async (projectPath: string, options: { timeout: string; daemon: boolean }) => {
+  .action(async (projectPath: string, options: { timeout: string; inactivity: string; daemon: boolean }) => {
     const hours = parseTimeout(options.timeout);
+    const inactivityMs = parseInactivity(options.inactivity);
 
     if (options.daemon) {
       // Spawn a detached child of ourselves without --daemon flag
-      const child = spawn(process.execPath, [process.argv[1], 'start', projectPath, '-t', options.timeout], {
+      const child = spawn(process.execPath, [process.argv[1], 'start', projectPath, '-t', options.timeout, '-i', options.inactivity], {
         detached: true,
         stdio: 'ignore',
       });
@@ -68,7 +70,7 @@ program
       process.exit(0);
     }
 
-    await startTracking(projectPath, hours);
+    await startTracking(projectPath, hours, inactivityMs);
   });
 
 program
@@ -128,8 +130,31 @@ program.parse();
 
 function parseTimeout(raw: string): number {
   const match = raw.match(/^(\d+)(h|m)?$/i);
-  if (!match) return 12;
+  if (!match) {
+    console.error(chalk.red(`✗ Invalid timeout format: "${raw}". Use e.g. 30m, 2h, 12h`));
+    process.exit(1);
+  }
   const val = parseInt(match[1]);
+  if (val <= 0) {
+    console.error(chalk.red(`✗ Timeout must be greater than 0. Got: "${raw}"`));
+    process.exit(1);
+  }
   const unit = (match[2] ?? 'h').toLowerCase();
   return unit === 'm' ? val / 60 : val;
+}
+
+function parseInactivity(raw: string): number {
+  const match = raw.match(/^(\d+)(h|m)?$/i);
+  if (!match) {
+    console.error(chalk.red(`✗ Invalid inactivity format: "${raw}". Use e.g. 5m, 10m, 1h`));
+    process.exit(1);
+  }
+  const val = parseInt(match[1]);
+  if (val <= 0) {
+    console.error(chalk.red(`✗ Inactivity must be greater than 0. Got: "${raw}"`));
+    process.exit(1);
+  }
+  const unit = (match[2] ?? 'm').toLowerCase();
+  const minutes = unit === 'h' ? val * 60 : val;
+  return minutes * 60 * 1000;
 }

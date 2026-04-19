@@ -19,6 +19,7 @@ export interface ProjectData {
 }
 
 export interface Store {
+  schemaVersion?: number;
   projects: Record<string, ProjectData>;
   activeProject?: string;
   activeSessionId?: string;
@@ -85,6 +86,8 @@ export function saveStore(store: Store): void {
   const salt = getSalt();
   const dataToHash = { ...store };
   delete dataToHash._integrity;
+  // Normalise schemaVersion so it is always included in the HMAC
+  dataToHash.schemaVersion = 1;
 
   const integrity = computeHmac(dataToHash, salt);
   const toWrite: Store = { ...dataToHash, _integrity: integrity };

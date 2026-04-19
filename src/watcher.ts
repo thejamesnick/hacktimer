@@ -1,6 +1,6 @@
 import chokidar, { FSWatcher } from 'chokidar';
 
-const INACTIVITY_MS = 10 * 60 * 1000; // 10 minutes
+const DEFAULT_INACTIVITY_MS = 10 * 60 * 1000; // 10 minutes
 
 export interface WatcherHandle {
   stop: () => void;
@@ -9,7 +9,8 @@ export interface WatcherHandle {
 export function startWatcher(
   projectPath: string,
   onActive: () => void,
-  onIdle: () => void
+  onIdle: () => void,
+  inactivityMs: number = DEFAULT_INACTIVITY_MS
 ): WatcherHandle {
   const watcher: FSWatcher = chokidar.watch(projectPath, {
     ignored: /(^|[/\\])(\.|node_modules|dist|build|target|__pycache__)/,
@@ -29,7 +30,7 @@ export function startWatcher(
     timeoutId = setTimeout(() => {
       isIdle = true;
       onIdle();
-    }, INACTIVITY_MS);
+    }, inactivityMs);
   }
 
   watcher.on('all', (event) => {

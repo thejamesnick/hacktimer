@@ -22,7 +22,7 @@ HackTimer only counts time when files are changing. The moment you stop editing,
 
 ```bash
 npm install -g myhacktimer
-# or just run directly
+# or run directly without installing
 npx myhacktimer start .
 ```
 
@@ -31,17 +31,19 @@ npx myhacktimer start .
 ## Commands
 
 ```bash
-hacktimer start <path> [-t 4h]   # start or resume session (default timeout: 12h)
-hacktimer start <path> --daemon  # run in background, close terminal freely
-hacktimer stop                    # pause session — resume anytime with start
-hacktimer end                     # end session forever + final summary
-hacktimer status                  # check live session from another terminal
-hacktimer report [project] -p week  # day | week | month | year
-hacktimer list                    # all tracked projects
-hacktimer log [project]           # raw session history
+hacktimer start <path> [-t 4h] [-i 5m]  # start or resume session (default timeout: 12h, inactivity: 10m)
+hacktimer start <path> --daemon          # run in background, close terminal freely
+hacktimer stop                           # pause session — resume anytime with start
+hacktimer end                            # end session forever + final summary
+hacktimer status                         # check live session from another terminal
+hacktimer report [project] -p week       # day | week | month | year
+hacktimer list                           # all tracked projects
+hacktimer log [project]                  # raw session history
 ```
 
 **Timeout format:** `30m`, `2h`, `12h`, `24h` — whatever fits your session.
+
+**Inactivity format:** `5m`, `10m`, `1h` — how long to wait before auto-pausing (default: `10m`).
 
 **Sessions persist forever** — `stop` just pauses, `start` always resumes. Only `end` closes a session for good.
 
@@ -50,7 +52,7 @@ hacktimer log [project]           # raw session history
 ## How it works
 
 - Watches your folder with `chokidar` for `add`, `change`, `unlink` events
-- Resets a 10-minute inactivity timer on every file change
+- Resets the inactivity timer (default 10min) on every file change
 - When the timer fires → pauses. Next file change → resumes
 - Snapshots LOC at `start` and `stop`, computes delta
 - Saves everything to `~/.hacktimer/sessions.json`

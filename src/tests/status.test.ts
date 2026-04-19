@@ -49,14 +49,15 @@ describe('showStatus', () => {
     expect(calls).toContain('Session data missing');
   });
 
-  it('shows active session info with project name and time', async () => {
-    const start = new Date(Date.now() - 90 * 60 * 1000).toISOString(); // 90 mins ago
+  it('shows active session info with project name and time from activeMinutes', async () => {
+    const start = new Date(Date.now() - 90 * 60 * 1000).toISOString(); // 90 mins ago wall-clock
     mockLoadStore.mockReturnValue({
       projects: {
         'my-hack': {
           timeoutHours: 12,
           sessions: [
-            { id: 'sess_1', start, end: null, activeMinutes: 0, locStart: 150, locEnd: null, date: '2026-04-13' },
+            // activeMinutes=30 is the persisted coding time — not the same as wall-clock elapsed
+            { id: 'sess_1', start, end: null, activeMinutes: 30, locStart: 150, locEnd: null, date: '2026-04-13' },
           ],
         },
       },
@@ -67,9 +68,11 @@ describe('showStatus', () => {
     const calls = (console.log as ReturnType<typeof vi.fn>).mock.calls.flat().join(' ');
     expect(calls).toContain('my-hack');
     expect(calls).toContain('Remaining');
+    // Should show 30 min = 0h 30m, not 90 min (wall-clock)
+    expect(calls).toContain('0h 30m');
   });
 
-  it('shows LOC delta from getLocCount', async () => {
+  it('shows LOC delta from getLocCount using activeProjectPath', async () => {
     const { getLocCount } = await import('../loc.js');
     vi.mocked(getLocCount).mockResolvedValue(300); // locStart=150, so delta=+150
 
@@ -85,9 +88,12 @@ describe('showStatus', () => {
       },
       activeProject: 'my-hack',
       activeSessionId: 'sess_1',
+      activeProjectPath: '/home/user/my-hack',
     });
     await showStatus();
     const calls = (console.log as ReturnType<typeof vi.fn>).mock.calls.flat().join(' ');
     expect(calls).toContain('+150');
+    // Verify getLocCount was called with the stored project path, not cwd
+    expect(vi.mocked(getLocCount)).toHaveBeenCalledWith('/home/user/my-hack');
   });
 });
