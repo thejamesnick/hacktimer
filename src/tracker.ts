@@ -39,12 +39,13 @@ let active: ActiveSession | null = null;
 
 export async function startTracking(projectPath: string, timeoutHours: number, inactivityMs?: number) {
   const absPath = path.resolve(projectPath);
-  const inactivityDisplay = fmtInactivity(inactivityMs ?? DEFAULT_INACTIVITY_MS);
 
   if (!fs.existsSync(absPath)) {
     console.log(chalk.red(`✗ Path does not exist: ${absPath}`));
     process.exit(1);
   }
+
+  const inactivityDisplay = fmtInactivity(inactivityMs ?? DEFAULT_INACTIVITY_MS);
 
   const store = loadStore();
   const projectName = path.basename(absPath);
