@@ -86,7 +86,7 @@ export function saveStore(store: Store): void {
   const salt = getSalt();
   const dataToHash = { ...store };
   delete dataToHash._integrity;
-  // Normalise schemaVersion so it is always included in the HMAC
+  // Normalize schemaVersion so it is always included in the HMAC
   dataToHash.schemaVersion = 1;
 
   const integrity = computeHmac(dataToHash, salt);

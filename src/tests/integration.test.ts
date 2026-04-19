@@ -130,6 +130,7 @@ describe('Integration: end a paused session (no active watcher)', () => {
 
     const logOut = capturedLog(console.log as ReturnType<typeof vi.fn>);
     expect(logOut).toContain('Session ended');
+    // fmtDecimal(75) = (75/60).toFixed(1)+'h' = '1.3h'
     expect(logOut).toContain('1.3h');   // 75 mins = 1.3h
     expect(logOut).toContain('LOC delta');
     // Session must be closed
