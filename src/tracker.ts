@@ -24,10 +24,22 @@ export function fmtDecimal(mins: number): string {
   return (mins / 60).toFixed(1) + 'h';
 }
 
+// Format an inactivity duration in milliseconds to a human-readable string.
+function fmtInactivity(ms: number): string {
+  const mins = Math.round(ms / 60000);
+  if (mins < 60) return `${mins}min`;
+  const hrs = Math.floor(mins / 60);
+  const rem = mins % 60;
+  return rem === 0 ? `${hrs}h` : `${hrs}h ${rem}min`;
+}
+
+const DEFAULT_INACTIVITY_MS = 10 * 60 * 1000;
+
 let active: ActiveSession | null = null;
 
 export async function startTracking(projectPath: string, timeoutHours: number, inactivityMs?: number) {
   const absPath = path.resolve(projectPath);
+  const inactivityDisplay = fmtInactivity(inactivityMs ?? DEFAULT_INACTIVITY_MS);
 
   if (!fs.existsSync(absPath)) {
     console.log(chalk.red(`✗ Path does not exist: ${absPath}`));
@@ -80,7 +92,7 @@ export async function startTracking(projectPath: string, timeoutHours: number, i
     console.log(chalk.green(`\n✅ HackTimer started for ${chalk.bold.white(displayPath)}`));
     console.log(chalk.gray(`   ${chalk.cyan('⏱️')}  Timeout: ${chalk.bold.white(timeoutHours + 'h')} | Active time: ${chalk.bold.white('0h 0m')}`));
     console.log(chalk.gray(`   ${'👀'}  Watching for file changes...`));
-    console.log(chalk.gray(`   ${'⏸️'}  Pauses automatically after ${chalk.bold('10min')} of no edits\n`));
+    console.log(chalk.gray(`   ${'⏸️'}  Pauses automatically after ${chalk.bold(inactivityDisplay)} of no edits\n`));
 
     if (!store.projects[projectName]) {
       store.projects[projectName] = { timeoutHours, sessions: [] };
@@ -119,7 +131,7 @@ export async function startTracking(projectPath: string, timeoutHours: number, i
       if (active && !active.isPaused) {
         active.activeMs += Date.now() - active.lastResumeTime;
         active.isPaused = true;
-        console.log(chalk.yellow('⏸️  Paused — no file changes for 10min'));
+        console.log(chalk.yellow(`⏸️  Paused — no file changes for ${inactivityDisplay}`));
       }
     },
     inactivityMs

@@ -78,9 +78,10 @@ export function loadStore(): Store {
 export function saveStore(store: Store): void {
   fs.mkdirSync(STORE_DIR, { recursive: true });
 
-  // Make writable if it exists
+  // Make writable if it exists — chmod may be a no-op or throw on some platforms
+  // (Windows, network drives), so we swallow the error gracefully.
   if (fs.existsSync(STORE_PATH)) {
-    fs.chmodSync(STORE_PATH, 0o644);
+    try { fs.chmodSync(STORE_PATH, 0o644); } catch { /* no-op on Windows / network drives */ }
   }
 
   const salt = getSalt();
@@ -93,5 +94,5 @@ export function saveStore(store: Store): void {
   const toWrite: Store = { ...dataToHash, _integrity: integrity };
 
   fs.writeFileSync(STORE_PATH, JSON.stringify(toWrite, null, 2));
-  fs.chmodSync(STORE_PATH, 0o444); // read-only after write
+  try { fs.chmodSync(STORE_PATH, 0o444); } catch { /* no-op on Windows / network drives */ }
 }
