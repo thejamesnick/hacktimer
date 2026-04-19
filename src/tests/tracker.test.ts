@@ -94,10 +94,10 @@ describe('endTracking — daemon was killed (active is null)', () => {
     expect(calls).toContain('LOC delta');
   });
 
-  it('warns when no active session', async () => {
+  it('warns when no active or paused session', async () => {
     mockLoadStore.mockReturnValue({ projects: {} });
     await endTracking();
     const calls = (console.log as ReturnType<typeof vi.fn>).mock.calls.flat().join(' ');
-    expect(calls).toContain('No active session');
+    expect(calls).toContain('No active or paused session');
   });
 });

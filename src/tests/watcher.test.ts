@@ -12,6 +12,18 @@ afterAll(() => {
 });
 
 describe('startWatcher', () => {
+  it('respects HACKTIMER_POLL=1 env var and still returns a valid handle', () => {
+    process.env.HACKTIMER_POLL = '1';
+    let handle: ReturnType<typeof startWatcher> | undefined;
+    try {
+      handle = startWatcher(tmpDir, vi.fn(), vi.fn());
+      expect(typeof handle.stop).toBe('function');
+    } finally {
+      handle?.stop();
+      delete process.env.HACKTIMER_POLL;
+    }
+  });
+
   it('returns a handle with a stop function', () => {
     const handle = startWatcher(tmpDir, vi.fn(), vi.fn());
     expect(typeof handle.stop).toBe('function');

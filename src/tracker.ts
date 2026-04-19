@@ -24,15 +24,28 @@ export function fmtDecimal(mins: number): string {
   return (mins / 60).toFixed(1) + 'h';
 }
 
+// Format an inactivity duration in milliseconds to a human-readable string.
+function fmtInactivity(ms: number): string {
+  const mins = Math.round(ms / 60000);
+  if (mins < 60) return `${mins}min`;
+  const hrs = Math.floor(mins / 60);
+  const rem = mins % 60;
+  return rem === 0 ? `${hrs}h` : `${hrs}h ${rem}min`;
+}
+
+const DEFAULT_INACTIVITY_MS = 10 * 60 * 1000;
+
 let active: ActiveSession | null = null;
 
-export async function startTracking(projectPath: string, timeoutHours: number) {
+export async function startTracking(projectPath: string, timeoutHours: number, inactivityMs?: number) {
   const absPath = path.resolve(projectPath);
 
   if (!fs.existsSync(absPath)) {
     console.log(chalk.red(`✗ Path does not exist: ${absPath}`));
     process.exit(1);
   }
+
+  const inactivityDisplay = fmtInactivity(inactivityMs ?? DEFAULT_INACTIVITY_MS);
 
   const store = loadStore();
   const projectName = path.basename(absPath);
@@ -80,7 +93,7 @@ export async function startTracking(projectPath: string, timeoutHours: number) {
     console.log(chalk.green(`\n✅ HackTimer started for ${chalk.bold.white(displayPath)}`));
     console.log(chalk.gray(`   ${chalk.cyan('⏱️')}  Timeout: ${chalk.bold.white(timeoutHours + 'h')} | Active time: ${chalk.bold.white('0h 0m')}`));
     console.log(chalk.gray(`   ${'👀'}  Watching for file changes...`));
-    console.log(chalk.gray(`   ${'⏸️'}  Pauses automatically after ${chalk.bold('10min')} of no edits\n`));
+    console.log(chalk.gray(`   ${'⏸️'}  Pauses automatically after ${chalk.bold(inactivityDisplay)} of no edits\n`));
 
     if (!store.projects[projectName]) {
       store.projects[projectName] = { timeoutHours, sessions: [] };
@@ -119,9 +132,10 @@ export async function startTracking(projectPath: string, timeoutHours: number) {
       if (active && !active.isPaused) {
         active.activeMs += Date.now() - active.lastResumeTime;
         active.isPaused = true;
-        console.log(chalk.yellow('⏸️  Paused — no file changes for 10min'));
+        console.log(chalk.yellow(`⏸️  Paused — no file changes for ${inactivityDisplay}`));
       }
-    }
+    },
+    inactivityMs
   );
 
   active = {
@@ -218,8 +232,41 @@ export async function pauseTracking() {
 export async function endTracking() {
   const store = loadStore();
 
+  // Support ending a paused session (activeProject is cleared on pause, but
+  // activeProjectPath is kept and the session still has end: null)
   if (!store.activeProject || !store.activeSessionId) {
-    console.log(chalk.yellow('⚠️  No active session to end.'));
+    const pausedPath = store.activeProjectPath;
+    if (!pausedPath) {
+      console.log(chalk.yellow('⚠️  No active or paused session to end.'));
+      return;
+    }
+    const projectName = path.basename(pausedPath);
+    const projectData = store.projects[projectName];
+    const openSession = projectData?.sessions.find(s => !s.end);
+    if (!openSession) {
+      console.log(chalk.yellow('⚠️  No open session to end.'));
+      return;
+    }
+
+    const locEnd = await getLocCount(pausedPath);
+    const locDelta = locEnd - openSession.locStart;
+    const activeMinutes = openSession.activeMinutes;
+    const timeoutUsedPct = Math.round((activeMinutes / (projectData.timeoutHours * 60)) * 100);
+
+    openSession.end = new Date().toISOString();
+    openSession.locEnd = locEnd;
+
+    delete store.activeProjectPath;
+    saveStore(store);
+
+    const divider = chalk.gray('─'.repeat(40));
+    console.log(chalk.cyan(`\n🏁 Session ended for ${chalk.bold.white(projectName)}`));
+    console.log(divider);
+    console.log(`⏱️  Active coding time: ${chalk.bold.green(fmtDecimal(activeMinutes))}`);
+    console.log(`📝 LOC delta:          ${locDelta >= 0 ? chalk.bold.green('+' + locDelta + ' lines') : chalk.bold.red(locDelta + ' lines')}`);
+    console.log(`💾 Timeout used:       ${chalk.bold.white(timeoutUsedPct + '%')} ${chalk.gray(`(${fmtDecimal(activeMinutes)} / ${projectData.timeoutHours}h)`)}`);
+    console.log(divider);
+    console.log(chalk.green('✅ Saved. Great work! 🔥\n'));
     return;
   }
 

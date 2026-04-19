@@ -47,4 +47,29 @@ describe('getLocCount', () => {
     expect(count).toBe(0);
     fs.rmdirSync(emptyDir);
   });
+
+  it('skips unreadable subdirectories without throwing', async () => {
+    // Only run this test on non-root Unix — chmod 000 is a no-op for root
+    const isRoot = process.getuid?.() === 0;
+    if (process.platform === 'win32' || isRoot) return;
+
+    const baseDir = path.join(os.tmpdir(), `hacktimer-perm-test-${Date.now()}`);
+    const readableDir = path.join(baseDir, 'src');
+    const lockedDir = path.join(baseDir, 'private');
+    fs.mkdirSync(readableDir, { recursive: true });
+    fs.mkdirSync(lockedDir, { recursive: true });
+
+    fs.writeFileSync(path.join(readableDir, 'index.ts'), 'const x = 1;\n');  // 1 line
+    // Make the subdirectory unreadable
+    fs.chmodSync(lockedDir, 0o000);
+
+    try {
+      const count = await getLocCount(baseDir);
+      // Should count lines in readable src/, skip locked dir silently
+      expect(count).toBeGreaterThan(0);
+    } finally {
+      fs.chmodSync(lockedDir, 0o755);
+      fs.rmSync(baseDir, { recursive: true, force: true });
+    }
+  });
 });

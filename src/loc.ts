@@ -18,7 +18,13 @@ const IGNORE_DIRS = new Set([
 ]);
 
 async function* walkFiles(dir: string): AsyncGenerator<string> {
-  const entries = fs.readdirSync(dir, { withFileTypes: true });
+  let entries: fs.Dirent[];
+  try {
+    entries = fs.readdirSync(dir, { withFileTypes: true });
+  } catch {
+    // Skip directories we can't read (permission denied, broken symlinks, etc.)
+    return;
+  }
   for (const entry of entries) {
     if (entry.isDirectory()) {
       if (!IGNORE_DIRS.has(entry.name)) {

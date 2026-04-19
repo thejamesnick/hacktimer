@@ -1,6 +1,6 @@
 import chokidar, { FSWatcher } from 'chokidar';
 
-const INACTIVITY_MS = 10 * 60 * 1000; // 10 minutes
+const DEFAULT_INACTIVITY_MS = 10 * 60 * 1000; // 10 minutes
 
 export interface WatcherHandle {
   stop: () => void;
@@ -9,12 +9,19 @@ export interface WatcherHandle {
 export function startWatcher(
   projectPath: string,
   onActive: () => void,
-  onIdle: () => void
+  onIdle: () => void,
+  inactivityMs: number = DEFAULT_INACTIVITY_MS
 ): WatcherHandle {
+  // HACKTIMER_POLL=1 enables polling mode — required for WSL and network drives
+  // where native filesystem events are unreliable or unavailable.
+  const usePolling = process.env.HACKTIMER_POLL === '1';
+
   const watcher: FSWatcher = chokidar.watch(projectPath, {
     ignored: /(^|[/\\])(\.|node_modules|dist|build|target|__pycache__)/,
     persistent: true,
     ignoreInitial: true,
+    usePolling,
+    interval: usePolling ? 1000 : undefined,
   });
 
   let timeoutId: ReturnType<typeof setTimeout> | null = null;
@@ -29,7 +36,7 @@ export function startWatcher(
     timeoutId = setTimeout(() => {
       isIdle = true;
       onIdle();
-    }, INACTIVITY_MS);
+    }, inactivityMs);
   }
 
   watcher.on('all', (event) => {
