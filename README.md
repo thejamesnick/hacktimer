@@ -103,6 +103,19 @@ Everything stays on your machine.
 
 ---
 
+## Docs
+
+Full documentation in [`docs/`](./docs/README.md):
+
+- [Getting Started](./docs/getting-started.md)
+- [Commands Reference](./docs/commands.md)
+- [Configuration](./docs/configuration.md)
+- [Integrity Protection](./docs/integrity.md)
+- [Data Format](./docs/data-format.md)
+- [FAQ](./docs/faq.md)
+
+---
+
 ## Agent Skill
 
 Install the skill so any agent (Kiro, Claude Code, Copilot, etc.) knows how to use hacktimer:
